@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Creature } from "@/components/Creature";
 
 /** Tiempo mínimo que se ve la animación completa (ms desde que abrió la página). */
-const DURACION = 3100;
+const DURACION = 3600;
 const SESION = "treno:splash";
 
 function Chispa({ className, delay }: { className: string; delay: string }) {
