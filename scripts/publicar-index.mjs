@@ -26,7 +26,7 @@ walk(out, (p) => {
     const depth = rel.split("/").length - 2; // out/index.html -> 0
     const prefix = depth === 0 ? "./" : "../".repeat(depth);
     let s = readFileSync(p, "utf8");
-    s = s.replace(/(["'(])\/(_next\/|manifest\.json|icon\.svg|favicon\.ico)/g, `$1${prefix}$2`);
+    s = s.replace(/(["'(])\/(_next\/|manifest\.json|icon\.svg|icon-192\.png|apple-touch-icon\.png|favicon\.ico)/g, `$1${prefix}$2`);
     writeFileSync(p, s);
   } else if (rel.endsWith(".css")) {
     let s = readFileSync(p, "utf8");
@@ -40,7 +40,19 @@ walk(out, (p) => {
 });
 
 rmSync("_next", { recursive: true, force: true });
-for (const item of ["index.html", "404.html", "_next", "manifest.json", "icon.svg", "favicon.ico"]) {
+for (const item of [
+  "index.html",
+  "404.html",
+  "_next",
+  "manifest.json",
+  "icon.svg",
+  "favicon.ico",
+  "sw.js",
+  "icon-192.png",
+  "icon-512.png",
+  "icon-maskable-512.png",
+  "apple-touch-icon.png",
+]) {
   if (existsSync(join(out, item))) cpSync(join(out, item), item, { recursive: true });
 }
 console.log("✔ index.html listo en la raíz del proyecto.");

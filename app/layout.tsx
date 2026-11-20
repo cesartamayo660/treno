@@ -3,6 +3,8 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { TrenoProvider } from "@/lib/store";
 import { TrainingProvider } from "@/lib/training";
+import { BadgesProvider } from "@/lib/badgesProvider";
+import { PwaRegister } from "@/components/PwaRegister";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,6 +23,11 @@ export const metadata: Metadata = {
   description:
     "Registra tus entrenamientos, mide tu progreso hacia tu meta y compite con tus amigos en un ranking justo, según el objetivo de cada uno.",
   manifest: "./manifest.json",
+  icons: {
+    icon: [{ url: "./icon.svg", type: "image/svg+xml" }, { url: "./icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "./apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "TRENO", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
@@ -50,7 +57,10 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased selection:bg-accent selection:text-canvas">
         <TrenoProvider>
-          <TrainingProvider>{children}</TrainingProvider>
+          <TrainingProvider>
+            <BadgesProvider>{children}</BadgesProvider>
+          </TrainingProvider>
+          <PwaRegister />
         </TrenoProvider>
       </body>
     </html>

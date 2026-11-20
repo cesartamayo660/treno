@@ -16,6 +16,7 @@ import {
 import { CrewMemberRankingRow } from "@/lib/demoData";
 import { useTreno } from "@/lib/store";
 import { motion } from "framer-motion";
+import { FeedActions } from "@/components/FeedActions";
 import { Avatar, Eyebrow, Sheet, SheetHeader } from "@/components/ui";
 
 type Ranking = "general" | "asistencia" | "fuerza" | "subida" | "meta" | "rachas";
@@ -84,7 +85,7 @@ function metricOf(m: CrewMemberRankingRow, r: Ranking) {
 }
 
 export function CrewTab() {
-  const { currentUser: u, crewMembers, feed, toggleReaction, validateMatePr, validateCheckIn } = useTreno();
+  const { currentUser: u, crewMembers, feed, validateMatePr, validateCheckIn } = useTreno();
 
   const [crews, setCrews] = useState<CrewInfo[]>([BASE_CREW]);
   const [crewId, setCrewId] = useState(BASE_CREW.id);
@@ -396,22 +397,7 @@ export function CrewTab() {
                         </p>
                       )}
 
-                      <div className="mt-2.5 flex flex-wrap gap-1.5">
-                        {ev.reacciones.map((r) => (
-                          <button
-                            key={r.emoji}
-                            type="button"
-                            aria-pressed={r.reactedByMe}
-                            onClick={() => toggleReaction(ev.id, r.emoji)}
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                              r.reactedByMe ? "bg-accent/20 text-accent" : "bg-white/[0.07] text-white/70 hover:bg-white/10"
-                            }`}
-                          >
-                            <span>{r.emoji}</span>
-                            <span className="num">{r.count}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <FeedActions ev={ev} />
                     </div>
                   </li>
                 ))}

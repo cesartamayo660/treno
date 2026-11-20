@@ -141,3 +141,18 @@ input::placeholder {
   50% { box-shadow: 0 0 0 1px rgb(var(--c-accent) / 0.5), 0 10px 46px -4px rgb(var(--c-accent) / 0.55); }
 }
 .pulse-glow { animation: glow-pulse 2.4s ease-in-out infinite; }
+
+/* Insignia legendaria: destello que recorre la pieza */
+@keyframes badge-shine {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.18) drop-shadow(0 0 10px rgb(var(--c-accent) / 0.55)); }
+  100% { filter: brightness(1); }
+}
+.badge-shimmer { animation: badge-shine 2.6s ease-in-out infinite; }
+
+/* Respiración suave de la criatura */
+@keyframes creature-breathe {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(-3px) scale(1.015, 0.99); }
+}
+.creature-breathe { animation: creature-breathe 3.4s ease-in-out infinite; transform-origin: 50% 90%; }

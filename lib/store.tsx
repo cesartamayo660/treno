@@ -25,6 +25,16 @@ import {
 
 export type ThemeMode = "dark" | "light";
 
+export interface ComentarioFeed {
+  id: string;
+  autor: string;
+  avatar?: string;
+  texto: string;
+  esMio?: boolean;
+  /** true cuando lo escribe un amigo de ejemplo (el Crew real llega con el backend). */
+  simulado?: boolean;
+}
+
 export interface FeedItem {
   id: string;
   userId: string;
@@ -43,7 +53,22 @@ export interface FeedItem {
   validaciones?: number;
   validoPorMi?: boolean;
   reacciones: { emoji: string; count: number; reactedByMe: boolean }[];
+  comentarios?: ComentarioFeed[];
 }
+
+/** Reacciones disponibles en el selector del Crew. */
+export const EMOJIS_CREW = ["🔥", "💪", "👏", "🦍", "⚡", "👑"];
+
+const RESPUESTAS_AMIGOS: Record<"checkin" | "pr", string[]> = {
+  checkin: ["¡Esa es la actitud! 💪", "Gesto validado, a darle 🔥", "Presente como siempre 👏", "Así se hace, máquina"],
+  pr: ["¡BESTIAL! 🦍", "Eso es un PR de verdad 🏆", "Qué máquina 🔥", "¡A romperla! ⚡", "Se viene el club de los 100 👀"],
+};
+
+const hashTexto = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
 
 interface TrenoContextValue {
   /** true cuando ya se leyó el almacenamiento local (evita parpadeos). */
@@ -74,6 +99,7 @@ interface TrenoContextValue {
   crewMembers: CrewMemberRankingRow[];
   feed: FeedItem[];
   toggleReaction: (eventId: string, emoji: string) => void;
+  addComment: (eventId: string, texto: string) => void;
   validateMatePr: (eventId: string) => void;
   themeMode: ThemeMode;
   setThemeMode: (m: ThemeMode) => void;
@@ -281,8 +307,11 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetApp = () => {
+    // Borra TODO lo que guarda la app (perfil, entrenamientos, fotos, Crews e insignias)
     try {
-      window.localStorage.removeItem(STORAGE_KEY);
+      [STORAGE_KEY, "treno:training:v1", "treno:photos", "treno:crews", "treno:badges:v1", "treno:notif"].forEach((k) =>
+        window.localStorage.removeItem(k)
+      );
     } catch {
       /* noop */
     }
@@ -292,6 +321,8 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     setCrewMembers(crewSeedFor(p));
     setFeed(INITIAL_FEED);
     setOnboarded(false);
+    // Recarga para que el entrenamiento y las insignias en memoria también arranquen de cero
+    setTimeout(() => window.location.reload(), 50);
   };
 
   const doCheckInToday = (foto: string, gesto: { id: string; nombre: string }) => {
@@ -314,9 +345,11 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     setUser(next);
 
     const dias = next.rachaDias === 1 ? "día" : "días";
+    const eventId = `ev-checkin-${Date.now()}`;
+    simulateCrew(eventId, "checkin");
     setFeed((prev) => [
       {
-        id: `ev-checkin-${Date.now()}`,
+        id: eventId,
         userId: user.id,
         autor: user.nombre,
         avatar: user.avatar,
@@ -342,8 +375,11 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     };
     const hoy = todayIso();
     const sinHoy = user.pesajesUltimos14Dias.filter((p) => p.fecha !== hoy);
+    const historicoPrevio =
+      user.pesajesHistoricos ?? user.pesajesUltimos14Dias.map((p) => ({ fecha: p.fecha, pesoKg: p.pesoKg }));
     const next: DemoUser = {
       ...user,
+      pesajesHistoricos: [...historicoPrevio.filter((p) => p.fecha !== hoy), { fecha: hoy, pesoKg }].slice(-90),
       perfilActual: perfil,
       reporteActual: calculateFullBodyReport(
         perfil,
@@ -382,9 +418,11 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     setUser(next);
 
     if (params.nuevosPrs > 0) {
+      const eventId = `ev-pr-${Date.now()}`;
+      simulateCrew(eventId, "pr");
       setFeed((prev) => [
         {
-          id: `ev-pr-${Date.now()}`,
+          id: eventId,
           userId: user.id,
           autor: user.nombre,
           avatar: user.avatar,
@@ -424,6 +462,75 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+  };
+
+  const addComment = (eventId: string, texto: string) => {
+    const limpio = texto.trim().slice(0, 140);
+    if (!limpio) return;
+    setFeed((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId
+          ? {
+              ...ev,
+              comentarios: [
+                ...(ev.comentarios ?? []),
+                { id: `c-${Date.now()}`, autor: user.nombre, avatar: user.avatar, texto: limpio, esMio: true },
+              ],
+            }
+          : ev
+      )
+    );
+  };
+
+  /**
+   * Prototipo: los amigos de ejemplo responden a tus check-ins y récords (reacción,
+   * validación del gesto y comentario) para que el feed se sienta vivo.
+   * Con el backend real esto lo hacen tus amigos de verdad.
+   */
+  const simulateCrew = (eventId: string, tipo: "checkin" | "pr") => {
+    const amigos = crewMembers.filter((m) => m.codigoDemo !== "usuario_a");
+    if (!amigos.length) return;
+    const h = hashTexto(eventId);
+    const cuantos = Math.min(amigos.length, 2 + (h % 2));
+    const elegidos = Array.from({ length: cuantos }, (_, i) => amigos[(h + i * 2) % amigos.length]).filter(
+      (m, i, arr) => arr.findIndex((x) => x.userId === m.userId) === i
+    );
+    const frases = RESPUESTAS_AMIGOS[tipo];
+    const emojis = tipo === "pr" ? ["🏆", "🦍", "🔥"] : ["🔥", "💪", "👏"];
+
+    elegidos.forEach((amigo, i) => {
+      setTimeout(() => {
+        setFeed((prev) =>
+          prev.map((ev) => {
+            if (ev.id !== eventId) return ev;
+            const emoji = emojis[(h + i) % emojis.length];
+            const existe = ev.reacciones.find((r) => r.emoji === emoji);
+            const reacciones = existe
+              ? ev.reacciones.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1 } : r))
+              : [...ev.reacciones, { emoji, count: 1, reactedByMe: false }];
+            const comentarios =
+              i === 0 || i === 1
+                ? [
+                    ...(ev.comentarios ?? []),
+                    {
+                      id: `c-${eventId}-${i}`,
+                      autor: amigo.nombre,
+                      avatar: amigo.avatar,
+                      texto: frases[(h + i) % frases.length],
+                      simulado: true,
+                    },
+                  ]
+                : ev.comentarios;
+            return {
+              ...ev,
+              reacciones,
+              comentarios,
+              validaciones: tipo === "checkin" ? (ev.validaciones ?? 0) + 1 : ev.validaciones,
+            };
+          })
+        );
+      }, 3500 + i * 3200);
+    });
   };
 
   const validateCheckIn = (eventId: string) => {
@@ -481,6 +588,7 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
         crewMembers,
         feed,
         toggleReaction,
+        addComment,
         validateMatePr,
         themeMode,
         setThemeMode,

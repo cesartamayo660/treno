@@ -1,30 +1,61 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Award,
   Bell,
-  Dumbbell,
   Eye,
-  Flame,
   Lock,
   MapPin,
   Moon,
   RotateCcw,
   Scale,
+  Smartphone,
   Sun,
   Target,
-  Trophy,
 } from "lucide-react";
 import { useTreno } from "@/lib/store";
+import { BadgesSection } from "@/components/badges";
+import { CreatureCard } from "@/components/Creature";
+import {
+  activarNotificaciones,
+  desactivarNotificaciones,
+  notificacionesActivas,
+  notificacionesSoportadas,
+  useInstalacion,
+} from "@/lib/pwa";
 import { Avatar, Eyebrow, Segmented, Sheet, SheetHeader, Toggle } from "@/components/ui";
 
 export function PerfilTab() {
   const { currentUser: u, themeMode, setThemeMode, toggleShareWeightPrivacy, resetApp } = useTreno();
 
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
-  const [notifs, setNotifs] = useState(true);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Aviso del descanso (notificación del sistema): solo se activa si lo permites
+  const [notifs, setNotifs] = useState(false);
+  const [notifMsg, setNotifMsg] = useState<string | null>(null);
+  const [instalarOpen, setInstalarOpen] = useState(false);
+  const inst = useInstalacion();
+  useEffect(() => setNotifs(notificacionesActivas()), []);
+
+  const cambiarNotifs = async (v: boolean) => {
+    if (!v) {
+      desactivarNotificaciones();
+      setNotifs(false);
+      setNotifMsg(null);
+      return;
+    }
+    const r = await activarNotificaciones();
+    setNotifs(r === "ok");
+    setNotifMsg(
+      r === "ok"
+        ? "Listo: te aviso cuando termine tu descanso si estás en otra app."
+        : r === "denegado"
+        ? "El navegador bloqueó los avisos. Puedes permitirlos en los ajustes del sitio."
+        : "Este navegador no permite avisos. Instala la app para probar de nuevo."
+    );
+  };
 
   const w = u.perfilActual.pesoKg;
   const peso = unit === "kg" ? `${w}` : `${(w * 2.20462).toFixed(1)}`;
@@ -39,14 +70,6 @@ export function PerfilTab() {
       ? `${(st.tonelajeTotalKg / 1000).toFixed(1)} t`
       : `${Math.round(st.tonelajeTotalKg)} kg`;
 
-  const logros = [
-    { icon: Dumbbell, t: "Primer entrenamiento", d: "Registra una sesión completa", ok: st.entrenamientos >= 1 },
-    { icon: MapPin, t: "Primer check-in", d: "Asiste a tu gimnasio", ok: st.diasGym >= 1 },
-    { icon: Trophy, t: "Récord personal", d: "Rompe tu primer PR", ok: st.prsLogrados >= 1 },
-    { icon: Flame, t: "Racha de 7 días", d: "Siete días seguidos", ok: u.rachaDias >= 7 },
-  ];
-  const desbloqueados = logros.filter((l) => l.ok).length;
-
   const stats = [
     { v: st.entrenamientos, l: "Entrenamientos" },
     { v: tonelaje, l: "Tonelaje movido" },
@@ -60,6 +83,8 @@ export function PerfilTab() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
         <div className="space-y-5">
+          <CreatureCard />
+
           {/* Identidad */}
           <section className="glass-card rounded-card p-5 sm:p-6">
             <div className="flex items-center gap-4">
@@ -119,38 +144,7 @@ export function PerfilTab() {
         </div>
 
         <div className="space-y-5">
-          {/* Logros */}
-          <section className="glass-card rounded-card p-5 sm:p-6">
-            <div className="flex items-center justify-between">
-              <Eyebrow>Logros</Eyebrow>
-              <span className="text-xs font-semibold text-accent">
-                {desbloqueados} de {logros.length}
-              </span>
-            </div>
-            <ul className="mt-4 grid grid-cols-2 gap-3">
-              {logros.map((l) => {
-                const Icon = l.icon;
-                return (
-                  <li
-                    key={l.t}
-                    className={`rounded-2xl border p-3.5 transition ${
-                      l.ok ? "border-accent/40 bg-accent/10" : "border-white/10 opacity-55"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                        l.ok ? "bg-accent text-canvas" : "bg-white/10"
-                      }`}
-                    >
-                      {l.ok ? <Icon className="h-[18px] w-[18px]" /> : <Lock className="h-4 w-4" />}
-                    </span>
-                    <p className="mt-2.5 text-[13px] font-semibold leading-tight">{l.t}</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-white/45">{l.d}</p>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+          <BadgesSection />
 
           {/* Ajustes */}
           <section className="glass-card divide-y divide-white/10 rounded-card px-5 sm:px-6">
@@ -213,15 +207,47 @@ export function PerfilTab() {
               />
             </div>
 
+            {notificacionesSoportadas() && (
+              <div className="py-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Bell className="h-5 w-5 shrink-0 text-white/60" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">Aviso al terminar el descanso</p>
+                      <p className="text-xs leading-snug text-white/45">Una notificación si estás en otra app.</p>
+                    </div>
+                  </div>
+                  <Toggle checked={notifs} onChange={cambiarNotifs} label="Aviso al terminar el descanso" />
+                </div>
+                {notifMsg && (
+                  <p className="mt-2.5 text-xs leading-snug text-white/50" aria-live="polite">
+                    {notifMsg}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-4 py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <Bell className="h-5 w-5 shrink-0 text-white/60" />
+                <Smartphone className="h-5 w-5 shrink-0 text-white/60" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">Recordatorios</p>
-                  <p className="text-xs leading-snug text-white/45">Días pactados y cierre semanal.</p>
+                  <p className="text-sm font-semibold">{inst.instalada ? "App instalada" : "Instalar TRENO"}</p>
+                  <p className="text-xs leading-snug text-white/45">
+                    {inst.instalada
+                      ? "La estás usando como app: pantalla completa y sin internet."
+                      : "Ícono en tu pantalla, pantalla completa y funciona sin internet."}
+                  </p>
                 </div>
               </div>
-              <Toggle checked={notifs} onChange={setNotifs} label="Recordatorios" />
+              {!inst.instalada && (
+                <button
+                  type="button"
+                  onClick={() => (inst.puedeInstalar ? void inst.instalar() : setInstalarOpen(true))}
+                  className="shrink-0 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-canvas transition active:scale-95"
+                >
+                  {inst.puedeInstalar ? "Instalar" : "Cómo"}
+                </button>
+              )}
             </div>
 
             <button
@@ -240,6 +266,39 @@ export function PerfilTab() {
         <Award className="h-3.5 w-3.5" />
         TRENO · tus datos se guardan solo en este dispositivo
       </p>
+
+      <Sheet open={instalarOpen} onClose={() => setInstalarOpen(false)} label="Instalar TRENO">
+        <SheetHeader eyebrow="Sin tienda de apps" title="Instala TRENO en tu celular" onClose={() => setInstalarOpen(false)} />
+        <p className="mt-3 text-[15px] leading-relaxed text-white/65">
+          TRENO se instala desde el navegador: queda con su ícono, abre a pantalla completa y funciona aunque no haya señal.
+        </p>
+        <ol className="mt-5 space-y-3">
+          {(inst.esIos
+            ? [
+                "Abre TRENO en Safari.",
+                "Toca el botón Compartir (el cuadrado con la flecha hacia arriba).",
+                "Elige “Añadir a pantalla de inicio” y confirma.",
+              ]
+            : [
+                "Abre TRENO en Chrome (o Edge).",
+                "Toca el menú ⋮ del navegador.",
+                "Elige “Instalar app” o “Añadir a pantalla de inicio”.",
+              ]
+          ).map((t, i) => (
+            <li key={t} className="flex items-start gap-3">
+              <span className="num flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-canvas">
+                {i + 1}
+              </span>
+              <span className="pt-0.5 text-[15px] leading-snug">{t}</span>
+            </li>
+          ))}
+        </ol>
+        {inst.esIos && (
+          <p className="mt-4 rounded-2xl bg-white/[0.05] p-3.5 text-xs leading-relaxed text-white/55">
+            En iPhone, los avisos del sistema solo funcionan cuando TRENO está instalada en la pantalla de inicio.
+          </p>
+        )}
+      </Sheet>
 
       <Sheet open={confirmReset} onClose={() => setConfirmReset(false)} label="Borrar datos">
         <SheetHeader title="¿Borrar todos tus datos?" onClose={() => setConfirmReset(false)} />

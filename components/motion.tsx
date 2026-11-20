@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, Variants } from "framer-motion";
 
 /** Contenedor que entra con sus hijos escalonados. Usa <Item> para cada hijo. */
@@ -61,6 +61,14 @@ export function Confetti({ count = 26 }: { count?: number }) {
       }),
     [count]
   );
+
+  // Se retira al terminar: las piezas ya invisibles no deben ensanchar la página
+  const [vivo, setVivo] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setVivo(false), 1700);
+    return () => clearTimeout(t);
+  }, []);
+  if (!vivo) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-visible" aria-hidden>

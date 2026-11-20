@@ -14,13 +14,16 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Disc3,
   Flame,
   GripVertical,
   HelpCircle,
+  Maximize2,
   Pencil,
   Play,
   Plus,
   Search,
+  Share2,
   Timer,
   Trash2,
   Trophy,
@@ -41,6 +44,14 @@ import { useTreno } from "@/lib/store";
 import { Eyebrow, Sheet, SheetHeader } from "@/components/ui";
 import { Confetti, Item, Stagger } from "@/components/motion";
 import { fmt } from "@/components/FloatingTraining";
+import { GymMode } from "@/components/GymMode";
+import { PlateCalculator } from "@/components/PlateCalculator";
+import { ShareSheet } from "@/components/ShareSheet";
+import { fechaLarga } from "@/components/PrCelebration";
+import type { DatosTarjeta } from "@/lib/shareCard";
+import { sugerirSiguiente } from "@/lib/overload";
+import { estadoMuscular, grupoMasDescuidado } from "@/lib/muscles";
+import { todayIso } from "@/lib/freshUser";
 
 const MUSCLES = ["Todos", "Pecho", "Espalda", "Piernas", "Glúteos", "Hombros", "Brazos", "Core"] as const;
 const REST_OPTIONS = [60, 90, 120, 180];
@@ -318,17 +329,25 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
     startRest,
     finishSession,
     discardSession,
+    history,
+    applyLoad,
   } = useTraining();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [gym, setGym] = useState(false);
+  const [platesOpen, setPlatesOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const now = useNow(1000, true);
 
   if (!session) return null;
   const current = session.blocks.find((b) => b.id === session.currentBlockId) ?? session.blocks[0];
   const ex = exerciseById(current.exerciseId);
   const last = lastOf(current.exerciseId);
+  const sugerencia = ex ? sugerirSiguiente(history[current.exerciseId] ?? [], ex.equipo) : null;
+  const primeraPendiente = current.sets.find((s) => !s.completed);
+  const esBarra = ex?.equipo === "Barra" || ex?.equipo === "Barra Hex";
   const elapsed = Math.floor((now - session.startedAt) / 1000);
 
   const totalSets = session.blocks.reduce((t, b) => t + b.sets.length, 0);
@@ -368,6 +387,22 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
         </button>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setGym(true)}
+        className="flex w-full items-center gap-3.5 rounded-3xl border border-accent/40 bg-accent/10 p-3.5 text-left transition active:scale-[0.99]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-canvas">
+          <Maximize2 className="h-5 w-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] font-semibold">Entrar en modo gimnasio</span>
+          <span className="block text-xs leading-snug text-white/55">
+            Pantalla completa, botones grandes y descanso automático.
+          </span>
+        </span>
+      </button>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr] lg:items-start [&>*]:min-w-0">
         {/* Ejercicio actual */}
         <section className="glass-card rounded-card p-5 sm:p-6">
@@ -383,6 +418,37 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
               </span>
             )}
           </p>
+
+          {sugerencia && (
+            <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-canvas">
+                  <span className="text-lg font-bold leading-none">↗</span>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Para hoy</p>
+                  <p className="num mt-0.5 text-lg font-semibold">
+                    {sugerencia.pesoKg} kg × {sugerencia.reps}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => applyLoad(current.id, sugerencia.pesoKg, sugerencia.reps)}
+                  className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-canvas transition active:scale-95"
+                >
+                  Aplicar
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWhyOpen((v) => !v)}
+                className="mt-2 text-xs font-medium text-white/50 underline-offset-4 transition hover:text-white hover:underline"
+              >
+                {whyOpen ? "Ocultar" : "¿Por qué esta carga?"}
+              </button>
+              {whyOpen && <p className="mt-1.5 text-[13px] leading-snug text-white/65">{sugerencia.motivo}</p>}
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-[2rem_1fr_1fr_3rem] items-center gap-x-2.5 gap-y-2.5 text-center">
             <span className="text-[11px] font-medium text-white/40">Serie</span>
@@ -463,6 +529,16 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
               <Plus className="h-4 w-4" />
               Serie
             </button>
+            {esBarra && (
+              <button
+                type="button"
+                onClick={() => setPlatesOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5"
+              >
+                <Disc3 className="h-4 w-4" />
+                Discos
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setHelpOpen(true)}
@@ -561,6 +637,21 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={addExercise} />
       <OneRmHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <PlateCalculator
+        open={platesOpen}
+        onClose={() => setPlatesOpen(false)}
+        initialKg={primeraPendiente?.pesoKg || last?.pesoKg || sugerencia?.pesoKg || 60}
+        onUse={(kg) => current.sets.filter((x) => !x.completed).forEach((x) => updateSet(current.id, x.id, "pesoKg", kg))}
+      />
+      {gym && (
+        <GymMode
+          onExit={() => setGym(false)}
+          onFinish={() => {
+            setGym(false);
+            setConfirmOpen(true);
+          }}
+        />
+      )}
 
       {/* Confirmación de terminar */}
       <Sheet open={confirmOpen} onClose={() => setConfirmOpen(false)} label="Terminar entrenamiento">
@@ -615,6 +706,49 @@ function ActiveSession({ onFinished }: { onFinished: (s: SessionSummary) => void
 /* ───────────────────────── Resumen ───────────────────────── */
 function Summary({ s, onClose }: { s: SessionSummary; onClose: () => void }) {
   const { currentUser: u } = useTreno();
+  const [share, setShare] = useState<DatosTarjeta | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const abrirCompartir = (d: DatosTarjeta) => {
+    setShare(d);
+    setShareOpen(true);
+  };
+  const tarjetaSesion = (): DatosTarjeta => ({
+    tipo: "sesion",
+    etiqueta: "Sesión terminada",
+    titulo: s.nombre,
+    grande: String(s.seriesHechas),
+    unidad: s.seriesHechas === 1 ? "serie completada" : "series completadas",
+    subtitulo: s.prs.length ? "¡Con récord personal incluido!" : "Otro día más sumando constancia.",
+    emoji: s.prs.length ? "🏆" : "💪",
+    datos: [
+      { valor: String(s.duracionMin), nombre: "minutos" },
+      { valor: String(s.ejercicios), nombre: "ejercicios" },
+      { valor: String(u.rachaDias), nombre: u.rachaDias === 1 ? "día de racha" : "días de racha" },
+    ],
+    nombre: u.nombre,
+    fecha: fechaLarga(),
+  });
+  const tarjetaPr = (p: SessionSummary["prs"][number]): DatosTarjeta => {
+    const mejora = Math.round((p.oneRm - p.previo) * 10) / 10;
+    const pct = p.previo > 0 ? Math.round(((p.oneRm - p.previo) / p.previo) * 1000) / 10 : 0;
+    return {
+      tipo: "pr",
+      etiqueta: "Nuevo récord personal",
+      titulo: p.ejercicio,
+      grande: String(p.oneRm),
+      unidad: "kg de 1RM estimado",
+      subtitulo: `${p.pesoKg} kg × ${p.reps} repeticiones`,
+      emoji: "🏆",
+      datos: [
+        { valor: `${p.pesoKg}×${p.reps}`, nombre: "Serie" },
+        { valor: `+${mejora}`, nombre: "kg vs. antes" },
+        { valor: `${pct}%`, nombre: "de mejora" },
+      ],
+      nombre: u.nombre,
+      fecha: fechaLarga(),
+    };
+  };
   const frases = ["Eso fue una sesión brutal.", "Así se construye la constancia.", "Tu yo de hace un mes estaría orgulloso."];
   const frase = s.prs.length ? "¡Rompiste un récord personal!" : frases[s.duracionMin % frases.length];
 
@@ -661,20 +795,51 @@ function Summary({ s, onClose }: { s: SessionSummary; onClose: () => void }) {
                   <Trophy className="h-4 w-4 shrink-0 text-accent" />
                   <span className="truncate font-semibold">{p.ejercicio}</span>
                 </span>
-                <span className="num text-white/60">1RM {p.oneRm} kg</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="num text-white/60">1RM {p.oneRm} kg</span>
+                  <button
+                    type="button"
+                    onClick={() => abrirCompartir(tarjetaPr(p))}
+                    aria-label={`Compartir récord en ${p.ejercicio}`}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent transition active:scale-90"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onClose}
-        className="w-full rounded-full bg-accent py-4 text-base font-semibold text-canvas shadow-glow transition active:scale-[0.99]"
-      >
-        Listo
-      </button>
+      <div className="grid gap-2.5">
+        <button
+          type="button"
+          onClick={() => abrirCompartir(s.prs.length ? tarjetaPr(s.prs[0]) : tarjetaSesion())}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 text-base font-semibold text-canvas shadow-glow transition active:scale-[0.99]"
+        >
+          <Share2 className="h-5 w-5" />
+          {s.prs.length ? "Compartir mi récord" : "Compartir mi sesión"}
+        </button>
+        {s.prs.length > 0 && (
+          <button
+            type="button"
+            onClick={() => abrirCompartir(tarjetaSesion())}
+            className="w-full rounded-full border border-white/15 py-3.5 text-sm font-semibold transition hover:bg-white/5"
+          >
+            Compartir el resumen de la sesión
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-full bg-white/10 py-3.5 text-base font-semibold transition hover:bg-white/15 active:scale-[0.99]"
+        >
+          Listo
+        </button>
+      </div>
+
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} datos={share} />
     </div>
   );
 }
@@ -688,6 +853,7 @@ function ExerciseDetail({ ex, onClose }: { ex: ExerciseItem | null; onClose: () 
   const e = ex ?? last.current;
   const h = e ? history[e.id] ?? [] : [];
   const best = h.reduce((m, x) => Math.max(m, x.oneRm), 0);
+  const sug = e ? sugerirSiguiente(h, e.equipo) : null;
 
   return (
     <>
@@ -708,6 +874,15 @@ function ExerciseDetail({ ex, onClose }: { ex: ExerciseItem | null; onClose: () 
                 <p className="num mt-1.5 text-3xl font-semibold">{h.length}</p>
               </div>
             </div>
+            {sug && (
+              <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/10 p-3.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Próxima vez, prueba</p>
+                <p className="num mt-1 text-2xl font-semibold">
+                  {sug.pesoKg} kg × {sug.reps}
+                </p>
+                <p className="mt-1 text-[13px] leading-snug text-white/60">{sug.motivo}</p>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setHelpOpen(true)}
@@ -768,8 +943,13 @@ function ExerciseDetail({ ex, onClose }: { ex: ExerciseItem | null; onClose: () 
 
 /* ───────────────────────── Pestaña ───────────────────────── */
 export function EntrenarTab() {
-  const { routines, saveRoutine, deleteRoutine, session, startSession } = useTraining();
+  const { routines, saveRoutine, deleteRoutine, session, startSession, history } = useTraining();
 
+  const [platesOpen, setPlatesOpen] = useState(false);
+  const aviso = useMemo(
+    () => grupoMasDescuidado(estadoMuscular(history, (id) => exerciseById(id)?.grupoMuscular, todayIso())),
+    [history]
+  );
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [builder, setBuilder] = useState<{ open: boolean; initial: { id?: string; nombre: string; ejercicios: string[] } | null }>({
     open: false,
@@ -807,14 +987,30 @@ export function EntrenarTab() {
         <p className="mt-2 max-w-md text-[15px] leading-relaxed text-canvas/65">
           Elige tus ejercicios, ordénalos como quieras y empieza. Si una máquina está ocupada, cambias el orden al vuelo.
         </p>
-        <button
-          type="button"
-          onClick={openNew}
-          className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full bg-canvas py-4 text-base font-semibold text-white transition active:scale-[0.99] sm:w-auto sm:px-9"
-        >
-          <Plus className="h-5 w-5" />
-          Armar mi entrenamiento
-        </button>
+        {aviso && (
+          <p className="mt-4 flex items-start gap-2 rounded-2xl bg-canvas/[0.07] px-3.5 py-3 text-[13px] font-medium leading-snug text-canvas/80">
+            <span aria-hidden>💡</span>
+            {aviso.mensaje}
+          </p>
+        )}
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          <button
+            type="button"
+            onClick={openNew}
+            className="flex w-full items-center justify-center gap-2.5 rounded-full bg-canvas py-4 text-base font-semibold text-white transition active:scale-[0.99] sm:w-auto sm:px-9"
+          >
+            <Plus className="h-5 w-5" />
+            Armar mi entrenamiento
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlatesOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-canvas/20 py-4 text-base font-semibold text-canvas transition active:scale-[0.99] sm:w-auto sm:px-7"
+          >
+            <Disc3 className="h-5 w-5" />
+            Calculadora de discos
+          </button>
+        </div>
       </section>
 
       <Stagger className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
@@ -935,6 +1131,7 @@ export function EntrenarTab() {
         </Item>
       </Stagger>
 
+      <PlateCalculator open={platesOpen} onClose={() => setPlatesOpen(false)} />
       <Builder open={builder.open} onClose={() => setBuilder((b) => ({ ...b, open: false }))} initial={builder.initial} />
       <ExerciseDetail ex={detail} onClose={() => setDetail(null)} />
     </div>

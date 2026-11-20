@@ -28,6 +28,8 @@ import { todayIso } from "@/lib/freshUser";
 import { useTreno } from "@/lib/store";
 import { FormulaDetailData, FormulaModal } from "@/components/FormulaModal";
 import { Eyebrow, Segmented, Sheet, SheetHeader } from "@/components/ui";
+import { GoalProjection } from "@/components/GoalProjection";
+import { MuscleMap } from "@/components/MuscleMap";
 
 const TICK = "rgb(var(--c-ink) / 0.4)";
 const TOOLTIP = {
@@ -345,6 +347,8 @@ export function CuerpoTab() {
         </section>
 
         <div className="space-y-5">
+          <GoalProjection onRegister={openWeight} />
+
           {/* Indicadores */}
           <div className="grid grid-cols-3 gap-2.5">
             {indicadores.map((i) => (
@@ -391,6 +395,8 @@ export function CuerpoTab() {
           </div>
         </div>
       </div>
+
+      <MuscleMap />
 
       {/* Registrar peso */}
       <Sheet open={weightOpen} onClose={() => setWeightOpen(false)} label="Registrar peso">

@@ -23,6 +23,8 @@ export interface DemoUser {
   perfilInicial: BodyProfileInput;
   perfilActual: BodyProfileInput;
   pesajesUltimos14Dias: { fecha: string; pesoKg: number; cinturaCm?: number }[];
+  /** Historial de pesajes más largo (hasta 90) para proyectar la meta. */
+  pesajesHistoricos?: { fecha: string; pesoKg: number }[];
   evolucion8Semanas: {
     semana: number;
     etiqueta: string;

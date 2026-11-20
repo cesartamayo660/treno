@@ -166,6 +166,7 @@ export function buildFreshUser(
     pesajesUltimos14Dias: [
       { fecha: hoy, pesoKg: profile.pesoKg, cinturaCm: profile.cinturaCm },
     ],
+    pesajesHistoricos: [{ fecha: hoy, pesoKg: profile.pesoKg }],
     evolucion8Semanas: [
       {
         semana: 1,

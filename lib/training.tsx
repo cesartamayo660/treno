@@ -17,6 +17,7 @@ import { calculate1RM } from "./bodyMetrics";
 import { EXERCISES_LIBRARY, ExerciseItem } from "./exercisesData";
 import { useTreno } from "./store";
 import { todayIso } from "./freshUser";
+import { avisarDescansoTerminado } from "./pwa";
 
 export interface SetRow {
   id: string;
@@ -52,6 +53,17 @@ export interface HistoryEntry {
   pesoKg: number;
   reps: number;
   oneRm: number;
+  /** Series completadas ese día en el ejercicio. */
+  series?: number;
+}
+
+export interface PrInfo {
+  ejercicio: string;
+  oneRm: number;
+  pesoKg: number;
+  reps: number;
+  /** Mejor 1RM estimado anterior (kg). */
+  previo: number;
 }
 
 export interface SessionSummary {
@@ -59,7 +71,13 @@ export interface SessionSummary {
   duracionMin: number;
   seriesHechas: number;
   ejercicios: number;
-  prs: { ejercicio: string; oneRm: number }[];
+  prs: PrInfo[];
+}
+
+/** Récord recién logrado en una serie (dispara la celebración). */
+export interface PrEvent extends PrInfo {
+  id: number;
+  ejercicioId: string;
 }
 
 interface RestState {
@@ -70,6 +88,8 @@ interface RestState {
 }
 
 interface TrainingContextValue {
+  /** true cuando ya se leyó el almacenamiento local. */
+  hydrated: boolean;
   routines: Routine[];
   saveRoutine: (r: { id?: string; nombre: string; ejercicios: string[] }) => void;
   deleteRoutine: (id: string) => void;
@@ -89,6 +109,12 @@ interface TrainingContextValue {
   addSet: (blockId: string) => void;
   updateSet: (blockId: string, setId: string, field: "pesoKg" | "reps", value: number) => void;
   toggleSet: (blockId: string, setId: string) => void;
+  /** Rellena las series sin completar de un ejercicio con la carga sugerida. */
+  applyLoad: (blockId: string, pesoKg: number, reps: number) => void;
+
+  /** Último récord logrado en vivo (se limpia al cerrar la celebración). */
+  prEvent: PrEvent | null;
+  clearPrEvent: () => void;
 
   rest: RestState;
   restPref: number;
@@ -154,6 +180,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [restPref, setRestPrefState] = useState(90);
   const [rest, setRest] = useState<RestState>({ endsAt: null, total: 90, doneAt: null });
+  const [prEvent, setPrEvent] = useState<PrEvent | null>(null);
 
   useEffect(() => {
     try {
@@ -191,6 +218,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
       } catch {
         /* sin vibración */
       }
+      avisarDescansoTerminado();
       setRest((r) => ({ ...r, endsAt: null, doneAt: Date.now() }));
     }, Math.max(0, ms));
     return () => clearTimeout(t);
@@ -279,35 +307,80 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
         : s
     );
 
-  const toggleSet: TrainingContextValue["toggleSet"] = (blockId, setId) =>
-    setSession((s) => {
-      if (!s) return s;
+  const toggleSet: TrainingContextValue["toggleSet"] = (blockId, setId) => {
+    if (!session) return;
+    const bloque = session.blocks.find((b) => b.id === blockId);
+    if (!bloque) return;
+
+    // Todo se calcula fuera de setState para que la celebración se dispare una sola vez
+    const prevBest = best1RmOf(bloque.exerciseId);
+    const hallazgo: { pr: PrEvent | null } = { pr: null };
+
+    const blocks = session.blocks.map((b) => {
+      if (b.id !== blockId) return b;
       return {
-        ...s,
-        blocks: s.blocks.map((b) => {
-          if (b.id !== blockId) return b;
-          const prevBest = best1RmOf(b.exerciseId);
-          return {
-            ...b,
-            sets: b.sets.map((x) => {
-              if (x.id !== setId) return x;
-              const done = !x.completed;
-              if (!done) return { ...x, completed: false, esPr: false, aviso: null };
-              const est = x.pesoKg > 0 && x.reps > 0 ? calculate1RM(x.pesoKg, x.reps).principal1RM : 0;
-              // Solo hay récord si ya existe un historial contra el cual comparar
-              const esPr = prevBest > 0 && est > prevBest;
-              // Antitrampas: solo si SUBES de golpe más del 18 % sobre tu mejor marca
-              const salto = prevBest > 0 ? (est - prevBest) / prevBest : 0;
-              const aviso =
-                salto > 0.18
-                  ? `Subiste ${Math.round(salto * 100)} % de golpe sobre tu mejor marca. Es posible, pero tu Crew podrá validarlo.`
-                  : null;
-              return { ...x, completed: true, esPr, aviso };
-            }),
-          };
+        ...b,
+        sets: b.sets.map((x) => {
+          if (x.id !== setId) return x;
+          if (x.completed) return { ...x, completed: false, esPr: false, aviso: null };
+          const est = x.pesoKg > 0 && x.reps > 0 ? calculate1RM(x.pesoKg, x.reps).principal1RM : 0;
+          // Mejor marca ya lograda HOY en este ejercicio (otras series): para no celebrar la misma marca dos veces
+          const mejorHoy = b.sets
+            .filter((o) => o.id !== x.id && o.completed && o.pesoKg > 0 && o.reps > 0)
+            .reduce((m, o) => Math.max(m, calculate1RM(o.pesoKg, o.reps).principal1RM), 0);
+          // Solo hay récord si ya existe un historial contra el cual comparar
+          const esPr = prevBest > 0 && est > Math.max(prevBest, mejorHoy);
+          // Antitrampas: solo si SUBES de golpe más del 18 % sobre tu mejor marca
+          const salto = prevBest > 0 ? (est - prevBest) / prevBest : 0;
+          const aviso =
+            salto > 0.18
+              ? `Subiste ${Math.round(salto * 100)} % de golpe sobre tu mejor marca. Es posible, pero tu Crew podrá validarlo.`
+              : null;
+          if (esPr) {
+            hallazgo.pr = {
+              id: Date.now(),
+              ejercicioId: b.exerciseId,
+              ejercicio: exerciseById(b.exerciseId)?.nombre ?? "Ejercicio",
+              oneRm: est,
+              pesoKg: x.pesoKg,
+              reps: x.reps,
+              previo: prevBest,
+            };
+          }
+          return { ...x, completed: true, esPr, aviso };
         }),
       };
     });
+
+    setSession({ ...session, blocks });
+    if (hallazgo.pr) {
+      setPrEvent(hallazgo.pr);
+      try {
+        navigator.vibrate?.([40, 70, 40, 70, 160]);
+      } catch {
+        /* sin vibración */
+      }
+    }
+  };
+
+  const applyLoad: TrainingContextValue["applyLoad"] = (blockId, pesoKg, reps) =>
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            blocks: s.blocks.map((b) =>
+              b.id !== blockId
+                ? b
+                : {
+                    ...b,
+                    sets: b.sets.map((x) => (x.completed ? x : { ...x, pesoKg, reps, esPr: false, aviso: null })),
+                  }
+            ),
+          }
+        : s
+    );
+
+  const clearPrEvent = () => setPrEvent(null);
 
   const finishSession = (): SessionSummary | null => {
     if (!session) return null;
@@ -327,10 +400,18 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
         .map((s) => ({ s, oneRm: calculate1RM(s.pesoKg, s.reps).principal1RM }))
         .sort((a, c) => c.oneRm - a.oneRm)[0];
       const nombre = exerciseById(b.exerciseId)?.nombre ?? "Ejercicio";
-      if (hechas.some((s) => s.esPr)) prs.push({ ejercicio: nombre, oneRm: mejor.oneRm });
+      if (hechas.some((s) => s.esPr)) {
+        prs.push({
+          ejercicio: nombre,
+          oneRm: mejor.oneRm,
+          pesoKg: mejor.s.pesoKg,
+          reps: mejor.s.reps,
+          previo: (history[b.exerciseId] ?? []).reduce((m, e) => Math.max(m, e.oneRm), 0),
+        });
+      }
       nuevoHist[b.exerciseId] = [
         ...(nuevoHist[b.exerciseId] ?? []),
-        { fecha: hoy, pesoKg: mejor.s.pesoKg, reps: mejor.s.reps, oneRm: mejor.oneRm },
+        { fecha: hoy, pesoKg: mejor.s.pesoKg, reps: mejor.s.reps, oneRm: mejor.oneRm, series: hechas.length },
       ].slice(-60);
     }
 
@@ -367,6 +448,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
+      hydrated,
       routines,
       saveRoutine,
       deleteRoutine,
@@ -384,6 +466,9 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
       addSet,
       updateSet,
       toggleSet,
+      applyLoad,
+      prEvent,
+      clearPrEvent,
       rest,
       restPref,
       setRestPref,
@@ -392,7 +477,7 @@ export function TrainingProvider({ children }: { children: React.ReactNode }) {
       stopRest,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routines, history, session, rest, restPref, lastOf, best1RmOf]
+    [hydrated, routines, history, session, rest, restPref, lastOf, best1RmOf, prEvent]
   );
 
   return <TrainingContext.Provider value={value}>{children}</TrainingContext.Provider>;

@@ -48,10 +48,12 @@ interface SheetProps {
   /** Ancho máximo en escritorio. */
   maxWidth?: string;
   label?: string;
+  /** Clase de z-index (para abrir una hoja encima del modo gimnasio). */
+  z?: string;
 }
 
 /** Hoja inferior en móvil, diálogo centrado en escritorio. Cierra con Esc o tocando fuera. */
-export function Sheet({ open, onClose, children, maxWidth = "max-w-md", label }: SheetProps) {
+export function Sheet({ open, onClose, children, maxWidth = "max-w-md", label, z = "z-[60]" }: SheetProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -68,7 +70,7 @@ export function Sheet({ open, onClose, children, maxWidth = "max-w-md", label }:
     <AnimatePresence>
       {open && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6"
+          className={`fixed inset-0 ${z} flex items-end justify-center sm:items-center sm:p-6`}
           role="dialog"
           aria-modal="true"
           aria-label={label}

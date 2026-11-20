@@ -12,6 +12,9 @@ import { CrewTab } from "@/components/tabs/CrewTab";
 import { PerfilTab } from "@/components/tabs/PerfilTab";
 import { useTreno } from "@/lib/store";
 import { FloatingTraining } from "@/components/FloatingTraining";
+import { PrCelebration } from "@/components/PrCelebration";
+import { BadgeToast } from "@/components/badges";
+import { EvolutionWatcher } from "@/components/Creature";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<MainTabId>("hoy");
@@ -39,6 +42,9 @@ export default function HomePage() {
     <div className="treno-bg min-h-dvh">
       <AppNav activeTab={activeTab} onSelectTab={go} />
       <FloatingTraining activeTab={activeTab} onGo={go} />
+      <PrCelebration />
+      <BadgeToast onVer={() => go("perfil")} />
+      <EvolutionWatcher />
 
       <div className="lg:pl-64">
         {/* Barra superior móvil */}
