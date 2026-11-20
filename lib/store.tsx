@@ -36,6 +36,12 @@ export interface FeedItem {
   haceTiempo: string;
   validadoPor?: string;
   sospechaOutlier?: boolean;
+  /** Foto del check-in (JPEG reducido) y gesto del día mostrado. */
+  foto?: string;
+  gesto?: string;
+  /** Validaciones del Crew sobre el gesto de la foto. */
+  validaciones?: number;
+  validoPorMi?: boolean;
   reacciones: { emoji: string; count: number; reactedByMe: boolean }[];
 }
 
@@ -54,7 +60,8 @@ interface TrenoContextValue {
     sedeGym: string;
   }) => void;
   resetApp: () => void;
-  doCheckInToday: (conFoto?: boolean) => void;
+  doCheckInToday: (foto: string, gesto: { id: string; nombre: string }) => void;
+  validateCheckIn: (eventId: string) => void;
   registerNewWeight: (pesoKg: number, cinturaCm?: number) => void;
   completeWorkoutSession: (params: {
     nombreRutina: string;
@@ -287,7 +294,7 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     setOnboarded(false);
   };
 
-  const doCheckInToday = (conFoto = false) => {
+  const doCheckInToday = (foto: string, gesto: { id: string; nombre: string }) => {
     if (user.checkedInHoy) return;
     const hoy = isoWeekday();
     const cumplidos = user.diasCumplidosEstaSemana.includes(hoy)
@@ -315,13 +322,15 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
         avatar: user.avatar,
         tipo: "checkin",
         titulo: `Check-in en ${user.sedeGym}`,
-        subtitulo: conFoto
-          ? `Racha de ${next.rachaDias} ${dias} · Con foto`
-          : `Racha de ${next.rachaDias} ${dias} · Dentro del radio del gimnasio`,
+        subtitulo: `Racha de ${next.rachaDias} ${dias} · Gesto del día: ${gesto.nombre}`,
         haceTiempo: "Ahora mismo",
+        foto,
+        gesto: gesto.nombre,
+        validaciones: 0,
         reacciones: [{ emoji: "🔥", count: 1, reactedByMe: true }],
       },
-      ...prev,
+      // Para no llenar el almacenamiento, solo las 3 fotos más recientes se conservan
+      ...prev.map((ev, i) => (ev.foto && i >= 2 ? { ...ev, foto: undefined } : ev)),
     ]);
   };
 
@@ -359,15 +368,13 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
   }) => {
     const next: DemoUser = {
       ...user,
-      checkedInHoy: true,
       tonelajeSemanaKg: (user.tonelajeSemanaKg ?? 0) + params.tonelajeKg,
       entrenamientosSemana: (user.entrenamientosSemana ?? 0) + 1,
       estadisticasVitalicias: {
         entrenamientos: user.estadisticasVitalicias.entrenamientos + 1,
         tonelajeTotalKg:
           user.estadisticasVitalicias.tonelajeTotalKg + params.tonelajeKg,
-        diasGym:
-          user.estadisticasVitalicias.diasGym + (user.checkedInHoy ? 0 : 1),
+        diasGym: user.estadisticasVitalicias.diasGym,
         prsLogrados: user.estadisticasVitalicias.prsLogrados + params.nuevosPrs,
       },
     };
@@ -419,6 +426,16 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const validateCheckIn = (eventId: string) => {
+    setFeed((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId && !ev.validoPorMi
+          ? { ...ev, validoPorMi: true, validaciones: (ev.validaciones ?? 0) + 1 }
+          : ev
+      )
+    );
+  };
+
   const validateMatePr = (eventId: string) => {
     setFeed((prev) =>
       prev.map((ev) =>
@@ -458,6 +475,7 @@ export function TrenoProvider({ children }: { children: React.ReactNode }) {
         completeOnboarding,
         resetApp,
         doCheckInToday,
+        validateCheckIn,
         registerNewWeight,
         completeWorkoutSession,
         crewMembers,

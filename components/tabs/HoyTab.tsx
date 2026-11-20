@@ -13,7 +13,10 @@ import {
   Trophy,
 } from "lucide-react";
 import { useTreno } from "@/lib/store";
-import { isoWeekday } from "@/lib/freshUser";
+import { isoWeekday, todayIso } from "@/lib/freshUser";
+import { gestoDelDia } from "@/lib/gestures";
+import { CheckInSheet } from "@/components/CheckInSheet";
+import { Confetti, GrowBar } from "@/components/motion";
 import { CountUpNumber } from "@/components/CountUpNumber";
 import { MainTabId } from "@/components/AppNav";
 import { Eyebrow, Sheet, SheetHeader } from "@/components/ui";
@@ -36,7 +39,8 @@ export function HoyTab({ onNavigateTab }: HoyTabProps) {
   const { currentUser: u, crewMembers, doCheckInToday } = useTreno();
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
-  const [withPhoto, setWithPhoto] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const gesto = useMemo(() => gestoDelDia(todayIso()), []);
 
   const hoy = isoWeekday();
   const pactados = u.diasPactadosSemana.length;
@@ -192,12 +196,13 @@ export function HoyTab({ onNavigateTab }: HoyTabProps) {
           </ol>
 
           {/* Única acción principal */}
-          <div className="mt-6">
+          <div className="relative mt-6">
+            {celebrate && <Confetti count={34} />}
             {!u.checkedInHoy ? (
               <button
                 type="button"
                 onClick={() => setCheckInOpen(true)}
-                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-4 text-base font-semibold text-canvas shadow-glow transition active:scale-[0.99]"
+                className="pulse-glow flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-4 text-base font-semibold text-canvas transition active:scale-[0.99]"
               >
                 <MapPin className="h-5 w-5 stroke-[2.4]" />
                 Hacer check-in
@@ -252,18 +257,13 @@ export function HoyTab({ onNavigateTab }: HoyTabProps) {
                   <span className="num text-2xl font-semibold">{meta.pesoMetaKg}</span>
                   <span className="text-sm text-white/50">kg</span>
                   <span className="ml-auto text-xs text-white/50">
-                    {faltanKg < 0.1 ? "¡Meta lograda!" : `faltan ${faltanKg.toFixed(1)} kg`}
+                    {totalKg < 0.1 ? "Mantén tu peso" : faltanKg < 0.1 ? "¡Meta lograda!" : `faltan ${faltanKg.toFixed(1)} kg`}
                   </span>
                 </span>
               </span>
               <ChevronRight className="h-5 w-5 shrink-0 text-white/30" />
             </span>
-            <span className="mt-3.5 block h-1.5 overflow-hidden rounded-full bg-white/10">
-              <span
-                className="block h-full rounded-full bg-accent transition-all duration-700"
-                style={{ width: `${Math.round(avanceMeta * 100)}%` }}
-              />
-            </span>
+            <GrowBar value={avanceMeta} className="mt-3.5" delay={0.4} />
           </button>
 
           {/* Pilares compactos */}
@@ -284,12 +284,7 @@ export function HoyTab({ onNavigateTab }: HoyTabProps) {
                         <span className="text-white/35"> / {x.p.maxBase}</span>
                       </span>
                     </div>
-                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-accent transition-all duration-700"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+                    <GrowBar value={pct / 100} className="mt-1.5 !h-1" delay={0.3} />
                   </li>
                 );
               })}
@@ -298,50 +293,20 @@ export function HoyTab({ onNavigateTab }: HoyTabProps) {
         </div>
       </div>
 
-      {/* Check-in */}
-      <Sheet open={checkInOpen} onClose={() => setCheckInOpen(false)} label="Confirmar check-in">
-        <SheetHeader eyebrow={u.sedeGym} title="Confirmar check-in" onClose={() => setCheckInOpen(false)} />
-        <p className="mt-3 text-[15px] leading-relaxed text-white/60">
-          Registrarás tu asistencia de hoy. Sumas puntos y mantienes tu racha de {u.rachaDias}{" "}
-          {u.rachaDias === 1 ? "día" : "días"}.
-        </p>
-
-        <button
-          type="button"
-          onClick={() => setWithPhoto((v) => !v)}
-          aria-pressed={withPhoto}
-          className={`mt-5 flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition ${
-            withPhoto ? "border-accent bg-accent/10" : "border-white/10 hover:bg-white/[0.05]"
-          }`}
-        >
-          <span className="flex items-center gap-3">
-            <Camera className="h-5 w-5 text-white/70" />
-            <span>
-              <span className="block text-sm font-semibold">Adjuntar foto</span>
-              <span className="block text-xs text-white/45">Opcional · se muestra en el feed de tu Crew</span>
-            </span>
-          </span>
-          <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-              withPhoto ? "border-accent bg-accent text-canvas" : "border-white/25"
-            }`}
-          >
-            {withPhoto && <Check className="h-3 w-3 stroke-[3]" />}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            doCheckInToday(withPhoto);
-            setCheckInOpen(false);
-            setWithPhoto(false);
-          }}
-          className="mt-5 w-full rounded-full bg-accent py-4 text-base font-semibold text-canvas shadow-glow transition active:scale-[0.99]"
-        >
-          Registrar asistencia
-        </button>
-      </Sheet>
+      {/* Check-in con foto y gesto del día */}
+      <CheckInSheet
+        open={checkInOpen}
+        onClose={() => setCheckInOpen(false)}
+        gesto={gesto}
+        sede={u.sedeGym}
+        racha={u.rachaDias}
+        onConfirm={(foto) => {
+          doCheckInToday(foto, { id: gesto.id, nombre: gesto.nombre });
+          setCheckInOpen(false);
+          setCelebrate(true);
+          setTimeout(() => setCelebrate(false), 1800);
+        }}
+      />
 
       {/* Desglose del score */}
       <Sheet open={scoreOpen} onClose={() => setScoreOpen(false)} label="Desglose del TRENO Score">

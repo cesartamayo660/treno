@@ -11,6 +11,7 @@ import { CuerpoTab } from "@/components/tabs/CuerpoTab";
 import { CrewTab } from "@/components/tabs/CrewTab";
 import { PerfilTab } from "@/components/tabs/PerfilTab";
 import { useTreno } from "@/lib/store";
+import { FloatingTraining } from "@/components/FloatingTraining";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<MainTabId>("hoy");
@@ -37,6 +38,7 @@ export default function HomePage() {
   return (
     <div className="treno-bg min-h-dvh">
       <AppNav activeTab={activeTab} onSelectTab={go} />
+      <FloatingTraining activeTab={activeTab} onGo={go} />
 
       <div className="lg:pl-64">
         {/* Barra superior móvil */}
@@ -53,11 +55,13 @@ export default function HomePage() {
         </header>
 
         <main className="mx-auto w-full max-w-md px-5 pb-32 pt-4 lg:max-w-5xl lg:px-10 lg:pb-16 lg:pt-10">
-          {activeTab === "hoy" && <HoyTab onNavigateTab={go} />}
-          {activeTab === "entrenar" && <EntrenarTab />}
-          {activeTab === "cuerpo" && <CuerpoTab />}
-          {activeTab === "crew" && <CrewTab />}
-          {activeTab === "perfil" && <PerfilTab />}
+          <div key={activeTab} className="tab-enter">
+            {activeTab === "hoy" && <HoyTab onNavigateTab={go} />}
+            {activeTab === "entrenar" && <EntrenarTab />}
+            {activeTab === "cuerpo" && <CuerpoTab />}
+            {activeTab === "crew" && <CrewTab />}
+            {activeTab === "perfil" && <PerfilTab />}
+          </div>
         </main>
       </div>
     </div>

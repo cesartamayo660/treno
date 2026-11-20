@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { TrenoProvider } from "@/lib/store";
+import { TrainingProvider } from "@/lib/training";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,7 +49,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
       <body className="font-sans antialiased selection:bg-accent selection:text-canvas">
-        <TrenoProvider>{children}</TrenoProvider>
+        <TrenoProvider>
+          <TrainingProvider>{children}</TrainingProvider>
+        </TrenoProvider>
       </body>
     </html>
   );

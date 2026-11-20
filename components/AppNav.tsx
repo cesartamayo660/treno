@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { motion } from "framer-motion";
 import { Activity, Dumbbell, Flame, User, Users } from "lucide-react";
 import { Avatar } from "@/components/ui";
 import { useTreno } from "@/lib/store";
@@ -52,11 +53,18 @@ export function AppNav({ activeTab, onSelectTab }: AppNavProps) {
                   className="group relative flex w-full flex-col items-center gap-1 rounded-2xl py-2 transition"
                 >
                   <span
-                    className={`flex h-8 w-14 items-center justify-center rounded-full transition-all ${
-                      active ? "bg-accent text-canvas" : "text-white/55 group-active:bg-white/10"
+                    className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
+                      active ? "text-canvas" : "text-white/55 group-active:bg-white/10"
                     }`}
                   >
-                    <Icon className={`h-[18px] w-[18px] ${active ? "stroke-[2.4]" : "stroke-[1.9]"}`} />
+                    {active && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="absolute inset-0 rounded-full bg-accent"
+                        transition={{ type: "spring", damping: 24, stiffness: 320 }}
+                      />
+                    )}
+                    <Icon className={`relative h-[18px] w-[18px] ${active ? "stroke-[2.4]" : "stroke-[1.9]"}`} />
                   </span>
                   <span
                     className={`text-[11px] font-medium leading-none ${

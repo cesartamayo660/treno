@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Copy,
   Flame,
+  Hand,
   Plus,
   ShieldCheck,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { CrewMemberRankingRow } from "@/lib/demoData";
 import { useTreno } from "@/lib/store";
+import { motion } from "framer-motion";
 import { Avatar, Eyebrow, Sheet, SheetHeader } from "@/components/ui";
 
 type Ranking = "general" | "asistencia" | "fuerza" | "subida" | "meta" | "rachas";
@@ -82,7 +84,7 @@ function metricOf(m: CrewMemberRankingRow, r: Ranking) {
 }
 
 export function CrewTab() {
-  const { currentUser: u, crewMembers, feed, toggleReaction, validateMatePr } = useTreno();
+  const { currentUser: u, crewMembers, feed, toggleReaction, validateMatePr, validateCheckIn } = useTreno();
 
   const [crews, setCrews] = useState<CrewInfo[]>([BASE_CREW]);
   const [crewId, setCrewId] = useState(BASE_CREW.id);
@@ -214,13 +216,16 @@ export function CrewTab() {
                         {me ? "Tú" : m.nombre.split(" ")[0]}
                       </p>
                       <p className="num mt-0.5 text-sm font-semibold text-accent">{m.label}</p>
-                      <div
-                        className={`mt-2.5 flex w-full items-start justify-center rounded-t-2xl pt-2 ${
-                          place === 1 ? "h-24 bg-accent text-canvas" : place === 2 ? "h-16 bg-white/15" : "h-12 bg-white/10"
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: place === 1 ? 96 : place === 2 ? 64 : 48 }}
+                        transition={{ type: "spring", damping: 18, stiffness: 120, delay: place === 1 ? 0.25 : place === 2 ? 0.1 : 0.18 }}
+                        className={`mt-2.5 flex w-full items-start justify-center overflow-hidden rounded-t-2xl pt-2 ${
+                          place === 1 ? "bg-accent text-canvas" : place === 2 ? "bg-white/15" : "bg-white/10"
                         }`}
                       >
                         <span className="num text-xl font-semibold">{place}</span>
-                      </div>
+                      </motion.div>
                     </div>
                   );
                 })}
@@ -344,6 +349,36 @@ export function CrewTab() {
                       </p>
                       <p className="mt-0.5 text-sm font-semibold leading-snug">{ev.titulo}</p>
                       <p className="mt-0.5 text-[13px] leading-snug text-white/50">{ev.subtitulo}</p>
+
+                      {ev.tipo === "checkin" && ev.gesto && (
+                        <div className="mt-2.5">
+                          {ev.foto && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={ev.foto} alt={`Check-in: ${ev.gesto}`} className="aspect-[4/3] w-full max-w-xs rounded-2xl object-cover" />
+                          )}
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-2.5 py-1 text-xs font-semibold text-white/70">
+                              <Hand className="h-3.5 w-3.5" />
+                              {ev.gesto}
+                            </span>
+                            {ev.userId === u.id ? (
+                              <span className="text-xs text-white/45">
+                                {(ev.validaciones ?? 0) > 0 ? `✓ Validado por ${ev.validaciones}` : "Esperando validación del Crew"}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => validateCheckIn(ev.id)}
+                                disabled={ev.validoPorMi}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent disabled:opacity-60"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                {ev.validoPorMi ? "Validado" : "Validar gesto"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {ev.sospechaOutlier && (
                         <button
