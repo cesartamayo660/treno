@@ -29,12 +29,15 @@ export function Creature({
   silueta = false,
   className = "h-40 w-40",
   respira = true,
+  sinBrazos = false,
 }: {
   nivel: 1 | 2 | 3 | 4 | 5;
   feliz?: boolean;
   silueta?: boolean;
   className?: string;
   respira?: boolean;
+  /** Sin brazos: para dibujarlos aparte (p. ej. sosteniendo una barra en la pantalla de inicio). */
+  sinBrazos?: boolean;
 }) {
   const s = ESCALA[nivel - 1];
   const cuerpo = silueta ? "rgb(var(--c-ink) / 0.14)" : ACENTO;
@@ -63,7 +66,7 @@ export function Creature({
           )}
 
           {/* brazos */}
-          {flex ? (
+          {sinBrazos ? null : flex ? (
             <g stroke={cuerpo} strokeWidth="19" strokeLinecap="round" fill="none">
               <path d="M58 138 Q32 130 34 104 Q36 88 48 84" />
               <path d="M142 138 Q168 130 166 104 Q164 88 152 84" />
@@ -74,7 +77,7 @@ export function Creature({
               <path d="M144 136 Q156 150 154 164" />
             </g>
           )}
-          {flex && (
+          {flex && !sinBrazos && (
             <g fill={cuerpo}>
               <circle cx="38" cy="108" r="15" />
               <circle cx="162" cy="108" r="15" />

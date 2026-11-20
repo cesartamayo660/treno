@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Dumbbell } from "lucide-react";
 import { AppNav, MainTabId } from "@/components/AppNav";
 import { Onboarding } from "@/components/Onboarding";
+import { Splash } from "@/components/Splash";
 import { Avatar } from "@/components/ui";
 import { HoyTab } from "@/components/tabs/HoyTab";
 import { EntrenarTab } from "@/components/tabs/EntrenarTab";
@@ -25,20 +26,7 @@ export default function HomePage() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Mientras se lee el almacenamiento local, solo la marca (evita parpadeos)
-  if (!hydrated) {
-    return (
-      <div className="treno-bg flex min-h-dvh items-center justify-center">
-        <span className="flex h-12 w-12 animate-pulse items-center justify-center rounded-2xl bg-accent text-canvas">
-          <Dumbbell className="h-6 w-6 stroke-[2.6]" />
-        </span>
-      </div>
-    );
-  }
-
-  if (!onboarded) return <Onboarding />;
-
-  return (
+  const app = (
     <div className="treno-bg min-h-dvh">
       <AppNav activeTab={activeTab} onSelectTab={go} />
       <FloatingTraining activeTab={activeTab} onGo={go} />
@@ -71,5 +59,14 @@ export default function HomePage() {
         </main>
       </div>
     </div>
+  );
+
+  // La pantalla de inicio (Splash) ocupa siempre el mismo lugar del árbol: así su animación no
+  // se reinicia cuando termina de leerse el almacenamiento local, y tapa lo que haya debajo.
+  return (
+    <>
+      <Splash listo={hydrated} />
+      {hydrated ? (onboarded ? app : <Onboarding />) : null}
+    </>
   );
 }
