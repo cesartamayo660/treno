@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────────────────────────────────────────────────
+   TRENO · sistema visual
+   Un solo acento (lima eléctrico) sobre neutros cálidos.
+   Tema oscuro por defecto; tema claro con [data-theme="light"].
+   Los colores son canales RGB para poder usar alfa en Tailwind.
+   ─────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme="dark"] {
+  --c-base: 10 12 11;        /* fondo de la app */
+  --c-raised: 22 26 24;      /* hojas, menús, tooltips */
+  --c-ink: 241 245 240;      /* texto y relleno de alto contraste */
+  --c-sink: 0 0 0;           /* superficies hundidas */
+  --c-accent: 205 255 64;    /* lima eléctrico */
+  --c-warn: 255 196 84;
+  --c-danger: 255 110 100;
+  --glow: 0.07;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --c-base: 244 245 240;
+  --c-raised: 255 255 255;
+  --c-ink: 15 20 17;
+  --c-sink: 15 20 17;
+  --c-accent: 54 96 0;       /* verde bosque para contraste sobre claro */
+  --c-warn: 176 108 0;
+  --c-danger: 200 50 40;
+  --glow: 0.10;
+  color-scheme: light;
+}
+
+html {
+  background: rgb(var(--c-base));
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background-color: rgb(var(--c-base));
+  color: rgb(var(--c-ink));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* Fondo con matiz: un halo de acento arriba y otro suave abajo */
+.treno-bg {
+  background-color: rgb(var(--c-base));
+  background-image:
+    radial-gradient(60rem 28rem at 12% -8%, rgb(var(--c-accent) / var(--glow)), transparent 60%),
+    radial-gradient(46rem 24rem at 100% 108%, rgb(var(--c-accent) / calc(var(--glow) * 0.55)), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Superficies: tarjetas finas, con borde de 1px y elevación leve */
+.glass-card,
+.glass-card-frosted,
+.glass-card-cobalt {
+  background: linear-gradient(160deg, rgb(var(--c-ink) / 0.07), rgb(var(--c-ink) / 0.035));
+  border: 1px solid rgb(var(--c-ink) / 0.09);
+  box-shadow: 0 1px 0 0 rgb(var(--c-ink) / 0.05) inset, 0 20px 40px -26px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: rgb(var(--c-ink));
+}
+
+.glass-card-frosted {
+  background: rgb(var(--c-ink) / 0.9);
+  color: rgb(var(--c-base));
+  border-color: transparent;
+}
+
+/* Números como protagonistas */
+.num {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* Inputs numéricos sin flechas */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input::placeholder {
+  color: rgb(var(--c-ink) / 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-accent));
+  outline-offset: 2px;
+}
+
+/* Safe areas (iPhone) */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--c-ink) / 0.18); border-radius: 9999px; }
+
+/* Scroll horizontal sin barra (chips) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

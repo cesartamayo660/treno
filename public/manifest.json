@@ -1,0 +1,14 @@
+{
+  "name": "TRENO — Progreso justo en el gimnasio",
+  "short_name": "TRENO",
+  "description": "Registra tu entrenamiento, mide tu progreso y compite con tus amigos de forma justa.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0c0b",
+  "theme_color": "#0a0c0b",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
